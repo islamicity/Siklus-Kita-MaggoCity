@@ -22,6 +22,7 @@ import {
   Trophy,
   GraduationCap,
   Bug,
+  Recycle,
 } from "lucide-react";
 import { NavTab } from "../types";
 
@@ -53,6 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: "infrastructure", label: "Infrastruktur AI", icon: <Cpu className="w-4 h-4" />, badge: "Auto-Scale" },
     { id: "scanner", label: "AI Scanner", icon: <ScanLine className="w-4 h-4" />, badge: "Vision" },
+    { id: "bsu_krisis_planet", label: "BSU Krisis Planet", icon: <Recycle className="w-4 h-4 text-emerald-500" />, badge: "Pilah 18+" },
     { id: "maggocity", label: "MaggoCity BSF", icon: <Bug className="w-4 h-4 text-emerald-500" />, badge: "Sirkular" },
     { id: "monitoring", label: "Monitoring", icon: <Activity className="w-4 h-4" /> },
     {

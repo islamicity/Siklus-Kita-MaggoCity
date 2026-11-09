@@ -7,6 +7,7 @@
 export type NavTab =
   | "infrastructure"
   | "scanner"
+  | "bsu_krisis_planet"
   | "monitoring"
   | "alerts"
   | "calendar"

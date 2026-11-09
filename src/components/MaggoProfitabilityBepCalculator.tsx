@@ -6,6 +6,22 @@
 
 import React, { useState, useMemo } from "react";
 import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+  Cell,
+} from "recharts";
+import {
   Calculator,
   DollarSign,
   TrendingUp,
@@ -27,6 +43,10 @@ import {
   Leaf,
   Sliders,
   Share2,
+  BarChart3,
+  PieChart,
+  Activity,
+  ArrowUpRight,
 } from "lucide-react";
 
 interface MaggoProfitabilityBepCalculatorProps {
@@ -79,6 +99,10 @@ export const MaggoProfitabilityBepCalculator: React.FC<MaggoProfitabilityBepCalc
 
   // Copy Feedback State
   const [copiedText, setCopiedText] = useState<boolean>(false);
+
+  // Recharts Interactive Sustainability Dashboard Mode
+  const [chartViewMode, setChartViewMode] = useState<"monthly_streams" | "trajectory_12m" | "cost_breakdown">("monthly_streams");
+  const [includeEggInStreams, setIncludeEggInStreams] = useState<boolean>(true);
 
   // Apply Presets
   const applyPreset = (preset: ModelPreset) => {
@@ -298,6 +322,197 @@ export const MaggoProfitabilityBepCalculator: React.FC<MaggoProfitabilityBepCalc
       worst: { omzet: worstOmzet, profit: worstProfit, payback: worstPayback },
     };
   }, [totalOmzetMonthly, calculatedOpex, calculatedCapex, netProfitMonthly, paybackPeriodMonths]);
+
+  // Currency Short Formatter for Recharts Axis
+  const formatShortRupiah = (val: number) => {
+    const absVal = Math.abs(val);
+    if (absVal >= 1000000) {
+      return `${(val / 1000000).toFixed(1)}Jt`;
+    }
+    if (absVal >= 1000) {
+      return `${(val / 1000).toFixed(0)}rb`;
+    }
+    return val.toString();
+  };
+
+  // Recharts Dataset 1: Monthly Revenue Streams vs OpEx & Net Profit
+  const monthlyStreamsChartData = useMemo(() => {
+    const list: Array<{
+      name: string;
+      tipe: "Aliran Omzet" | "Beban OpEx" | "Laba Bersih";
+      nominal: number;
+      fill: string;
+      detail: string;
+    }> = [
+      {
+        name: "Maggot Segar",
+        tipe: "Aliran Omzet",
+        nominal: revFresh,
+        fill: "#10b981", // Emerald 500
+        detail: `${freshMaggotKg.toLocaleString("id-ID")} kg @ Rp${priceFreshPerKg.toLocaleString("id-ID")}`,
+      },
+      {
+        name: "Maggot Kering",
+        tipe: "Aliran Omzet",
+        nominal: revDried,
+        fill: "#3b82f6", // Blue 500
+        detail: `${driedMaggotKg.toLocaleString("id-ID")} kg @ Rp${priceDriedPerKg.toLocaleString("id-ID")}`,
+      },
+      {
+        name: "Pupuk Kasgot",
+        tipe: "Aliran Omzet",
+        nominal: revKasgot,
+        fill: "#f59e0b", // Amber 500
+        detail: `${kasgotKg.toLocaleString("id-ID")} kg @ Rp${priceKasgotPerKg.toLocaleString("id-ID")}`,
+      },
+    ];
+
+    if (revSeedEggs > 0 && includeEggInStreams) {
+      list.push({
+        name: "Telur Bibit BSF",
+        tipe: "Aliran Omzet",
+        nominal: revSeedEggs,
+        fill: "#8b5cf6", // Purple 500
+        detail: `${seedEggsGram} gram @ Rp${priceSeedEggPerGram.toLocaleString("id-ID")}`,
+      });
+    }
+
+    list.push({
+      name: "Beban OpEx",
+      tipe: "Beban OpEx",
+      nominal: calculatedOpex,
+      fill: "#f43f5e", // Rose 500
+      detail: "Transport, EM4, Kemasan, Listrik",
+    });
+
+    list.push({
+      name: "Laba Bersih",
+      tipe: "Laba Bersih",
+      nominal: Math.max(0, netProfitMonthly),
+      fill: "#059669", // Emerald 600
+      detail: `Margin Bersih: ${profitMarginPercent.toFixed(1)}%`,
+    });
+
+    return list;
+  }, [
+    revFresh,
+    freshMaggotKg,
+    priceFreshPerKg,
+    revDried,
+    driedMaggotKg,
+    priceDriedPerKg,
+    revKasgot,
+    kasgotKg,
+    priceKasgotPerKg,
+    revSeedEggs,
+    seedEggsGram,
+    priceSeedEggPerGram,
+    includeEggInStreams,
+    calculatedOpex,
+    netProfitMonthly,
+    profitMarginPercent,
+  ]);
+
+  // Recharts Dataset 2: 12-Month Cumulative Trajectory & Payback
+  const trajectory12MonthData = useMemo(() => {
+    const points: Array<{
+      bulan: string;
+      bulanNum: number;
+      arusKasKumulatif: number;
+      omzetKumulatif: number;
+      opexKumulatif: number;
+      labaKumulatif: number;
+      garisNol: number;
+    }> = [];
+
+    // Bulan 0 (Capital Outlay)
+    points.push({
+      bulan: "Bln 0",
+      bulanNum: 0,
+      arusKasKumulatif: -calculatedCapex,
+      omzetKumulatif: 0,
+      opexKumulatif: 0,
+      labaKumulatif: 0,
+      garisNol: 0,
+    });
+
+    let runningCash = -calculatedCapex;
+    let runningOmzet = 0;
+    let runningOpex = 0;
+    let runningProfit = 0;
+
+    for (let m = 1; m <= 12; m++) {
+      runningOmzet += totalOmzetMonthly;
+      runningOpex += calculatedOpex;
+      runningProfit += netProfitMonthly;
+      runningCash += netProfitMonthly;
+
+      points.push({
+        bulan: `Bln ${m}`,
+        bulanNum: m,
+        arusKasKumulatif: runningCash,
+        omzetKumulatif: runningOmzet,
+        opexKumulatif: runningOpex,
+        labaKumulatif: runningProfit,
+        garisNol: 0,
+      });
+    }
+
+    return points;
+  }, [calculatedCapex, totalOmzetMonthly, calculatedOpex, netProfitMonthly]);
+
+  // Recharts Dataset 3: OpEx Breakdown vs Revenue Surplus
+  const costBreakdownData = useMemo(() => {
+    return [
+      {
+        kategori: "Transport Sampah",
+        nominal: costMode === "lump_sum" ? Math.round(calculatedOpex * 0.4) : opexTransportSampah,
+        fill: "#ef4444",
+        deskripsi: "Logistik jemput sampah organik",
+      },
+      {
+        kategori: "Fermentasi EM4",
+        nominal: costMode === "lump_sum" ? Math.round(calculatedOpex * 0.1) : opexFermentasiEm4,
+        fill: "#f97316",
+        deskripsi: "Mikroba EM4 + molase gula",
+      },
+      {
+        kategori: "Kemasan & Pouch",
+        nominal: costMode === "lump_sum" ? Math.round(calculatedOpex * 0.17) : opexKemasanPouch,
+        fill: "#eab308",
+        deskripsi: "Standing pouch & label kasgot",
+      },
+      {
+        kategori: "Listrik & Air",
+        nominal: costMode === "lump_sum" ? Math.round(calculatedOpex * 0.13) : opexListrikAir,
+        fill: "#3b82f6",
+        deskripsi: "Pompa misting & penerangan",
+      },
+      {
+        kategori: "Bibit Telur BSF",
+        nominal: costMode === "lump_sum" ? Math.round(calculatedOpex * 0.2) : opexSeedAwal,
+        fill: "#a855f7",
+        deskripsi: "Inokulasi koloni awal",
+      },
+      {
+        kategori: "Laba Bersih (Surplus)",
+        nominal: Math.max(0, netProfitMonthly),
+        fill: "#10b981",
+        deskripsi: "Surplus kas bulanan usaha",
+      },
+    ];
+  }, [costMode, calculatedOpex, opexTransportSampah, opexFermentasiEm4, opexKemasanPouch, opexListrikAir, opexSeedAwal, netProfitMonthly]);
+
+  // Benefit-Cost Ratio (BCR)
+  const benefitCostRatio = useMemo(() => {
+    if (calculatedOpex <= 0) return 0;
+    return totalOmzetMonthly / calculatedOpex;
+  }, [totalOmzetMonthly, calculatedOpex]);
+
+  // Year 1 Net Wealth Created (after returning 100% of CapEx)
+  const year1NetWealth = useMemo(() => {
+    return annualNetProfitProjected - calculatedCapex;
+  }, [annualNetProfitProjected, calculatedCapex]);
 
   // Formatted Executive Summary Text for Clipboard
   const executiveSummaryText = useMemo(() => {
@@ -970,6 +1185,446 @@ ${seedEggsGram > 0 ? `- Telur Bibit BSF: ${seedEggsGram} gram @ Rp${priceSeedEgg
               <span className="text-[10px] text-slate-400 block mt-1">
                 CapEx: Rp {(calculatedCapex / 1000000).toFixed(1)} Jt
               </span>
+            </div>
+          </div>
+
+          {/* ========================================================== */}
+          {/* RECHARTS ECONOMIC SUSTAINABILITY & ARUS KAS VISUALIZER     */}
+          {/* ========================================================== */}
+          <div
+            className={`p-5 rounded-2xl border space-y-4 transition-all ${
+              isDarkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-sm"
+            }`}
+          >
+            {/* Header with Title and Mode Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-emerald-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                    Visualisasi Keberlanjutan Finansial (Recharts Engine)
+                  </h4>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    Live Model
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Grafik dinamis multi-stream omzet vs beban operasional &amp; kurva balik modal
+                </p>
+              </div>
+
+              {/* View Mode Toggle Buttons */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                <button
+                  onClick={() => setChartViewMode("monthly_streams")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                    chartViewMode === "monthly_streams"
+                      ? "bg-emerald-600 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                  title="Perbandingan Aliran Pendapatan vs Beban OpEx"
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span>Streams vs OpEx</span>
+                </button>
+                <button
+                  onClick={() => setChartViewMode("trajectory_12m")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                    chartViewMode === "trajectory_12m"
+                      ? "bg-emerald-600 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                  title="Kurva Balik Modal dan Arus Kas Kumulatif 12 Bulan"
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Kurva 12 Bulan</span>
+                </button>
+                <button
+                  onClick={() => setChartViewMode("cost_breakdown")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                    chartViewMode === "cost_breakdown"
+                      ? "bg-emerald-600 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                  title="Dekomposisi Biaya Operasional vs Surplus Laba"
+                >
+                  <PieChart className="w-3.5 h-3.5" />
+                  <span>Alokasi Biaya</span>
+                </button>
+              </div>
+            </div>
+
+            {/* CHART VIEW 1: MONTHLY STREAMS VS OPEX (BAR CHART) */}
+            {chartViewMode === "monthly_streams" && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
+                      Komoditas Omzet
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded bg-rose-500 inline-block" />
+                      Beban OpEx (Ambang Biaya)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded bg-emerald-700 inline-block" />
+                      Laba Bersih
+                    </span>
+                  </div>
+                  {revSeedEggs > 0 && (
+                    <label className="flex items-center gap-1 text-[11px] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeEggInStreams}
+                        onChange={(e) => setIncludeEggInStreams(e.target.checked)}
+                        className="rounded accent-emerald-500"
+                      />
+                      <span>Sertakan Telur BSF</span>
+                    </label>
+                  )}
+                </div>
+
+                <div className="w-full h-[290px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={monthlyStreamsChartData}
+                      margin={{ top: 20, right: 15, left: 10, bottom: 25 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? "#334155" : "#e2e8f0"}
+                        opacity={0.6}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 11 }}
+                        interval={0}
+                        angle={-10}
+                        textAnchor="end"
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 10 }}
+                        tickFormatter={(v) => `Rp ${formatShortRupiah(v)}`}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload as any;
+                            return (
+                              <div
+                                className={`p-3 rounded-xl shadow-xl border text-xs space-y-1 backdrop-blur-md ${
+                                  isDarkMode
+                                    ? "bg-slate-900/95 border-slate-700 text-white"
+                                    : "bg-white/95 border-slate-200 text-slate-800"
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 font-bold border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full"
+                                    style={{ backgroundColor: data.fill }}
+                                  />
+                                  <span>{data.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    ({data.tipe})
+                                  </span>
+                                </div>
+                                <div className="text-sm font-black font-mono">
+                                  Rp {Number(data.nominal).toLocaleString("id-ID")}
+                                </div>
+                                <div className="text-[10px] text-slate-400">{data.detail}</div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <ReferenceLine
+                        y={calculatedOpex}
+                        stroke="#f43f5e"
+                        strokeDasharray="4 4"
+                        label={{
+                          value: `Ambang OpEx: Rp ${formatShortRupiah(calculatedOpex)}`,
+                          fill: "#f43f5e",
+                          fontSize: 10,
+                          position: "insideTopRight",
+                        }}
+                      />
+                      <Bar dataKey="nominal" name="Nominal (IDR)" radius={[6, 6, 0, 0]}>
+                        {monthlyStreamsChartData.map((entry, index) => (
+                          <Cell key={`stream-cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* CHART VIEW 2: 12-MONTH CUMULATIVE TRAJECTORY & PAYBACK (AREA / LINE) */}
+            {chartViewMode === "trajectory_12m" && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />
+                      Arus Kas Bersih Kumulatif
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded bg-blue-500 inline-block" />
+                      Omzet Kumulatif
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded bg-rose-500 inline-block" />
+                      OpEx Kumulatif
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    Balik Modal: {paybackPeriodMonths < 99 ? `${paybackPeriodMonths.toFixed(1)} Bulan` : "Defisit"}
+                  </div>
+                </div>
+
+                <div className="w-full h-[290px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={trajectory12MonthData}
+                      margin={{ top: 20, right: 15, left: 10, bottom: 15 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorCashFlow" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? "#334155" : "#e2e8f0"}
+                        opacity={0.6}
+                      />
+                      <XAxis
+                        dataKey="bulan"
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 10 }}
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 10 }}
+                        tickFormatter={(v) => `Rp ${formatShortRupiah(v)}`}
+                      />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const d = payload[0].payload as any;
+                            return (
+                              <div
+                                className={`p-3 rounded-xl shadow-xl border text-xs space-y-1.5 backdrop-blur-md ${
+                                  isDarkMode
+                                    ? "bg-slate-900/95 border-slate-700 text-white"
+                                    : "bg-white/95 border-slate-200 text-slate-800"
+                                }`}
+                              >
+                                <div className="font-bold border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  {label} {d.bulanNum === 0 ? "(Investasi Awal CapEx)" : ""}
+                                </div>
+                                <div className="space-y-1 font-mono text-[11px]">
+                                  <div className="flex items-center justify-between gap-3 text-emerald-600 dark:text-emerald-400 font-bold">
+                                    <span>Arus Kas Kumulatif:</span>
+                                    <span>Rp {Math.round(d.arusKasKumulatif).toLocaleString("id-ID")}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 text-blue-500">
+                                    <span>Omzet Kumulatif:</span>
+                                    <span>Rp {Math.round(d.omzetKumulatif).toLocaleString("id-ID")}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 text-rose-500">
+                                    <span>OpEx Kumulatif:</span>
+                                    <span>Rp {Math.round(d.opexKumulatif).toLocaleString("id-ID")}</span>
+                                  </div>
+                                </div>
+                                {d.arusKasKumulatif >= 0 && (
+                                  <div className="pt-1 text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Zona Surplus Keuntungan Bersih
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <ReferenceLine
+                        y={0}
+                        stroke={isDarkMode ? "#fbbf24" : "#d97706"}
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        label={{
+                          value: "Garis Impas (BEP Modal Rp 0)",
+                          fill: isDarkMode ? "#fbbf24" : "#d97706",
+                          fontSize: 10,
+                          position: "top",
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="arusKasKumulatif"
+                        name="Arus Kas Bersih"
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill="url(#colorCashFlow)"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="omzetKumulatif"
+                        name="Omzet Kumulatif"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="4 2"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="opexKumulatif"
+                        name="OpEx Kumulatif"
+                        stroke="#f43f5e"
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="4 2"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* CHART VIEW 3: OPEX ALLOCATION VS SURPLUS (HORIZONTAL BAR) */}
+            {chartViewMode === "cost_breakdown" && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span>Alokasi setiap komponen pengeluaran bulanan dibanding sisa laba bersih:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    Omzet Total: Rp {totalOmzetMonthly.toLocaleString("id-ID")}
+                  </span>
+                </div>
+
+                <div className="w-full h-[290px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={costBreakdownData}
+                      layout="vertical"
+                      margin={{ top: 10, right: 30, left: 70, bottom: 10 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? "#334155" : "#e2e8f0"}
+                        opacity={0.6}
+                      />
+                      <XAxis
+                        type="number"
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 10 }}
+                        tickFormatter={(v) => `Rp ${formatShortRupiah(v)}`}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="kategori"
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 10 }}
+                        width={110}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const item = payload[0].payload as any;
+                            const sharePercent = totalOmzetMonthly > 0 ? ((item.nominal / totalOmzetMonthly) * 100).toFixed(1) : "0";
+                            return (
+                              <div
+                                className={`p-3 rounded-xl shadow-xl border text-xs space-y-1 backdrop-blur-md ${
+                                  isDarkMode
+                                    ? "bg-slate-900/95 border-slate-700 text-white"
+                                    : "bg-white/95 border-slate-200 text-slate-800"
+                                }`}
+                              >
+                                <div className="font-bold flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                                  <span>{item.kategori}</span>
+                                </div>
+                                <div className="text-sm font-black font-mono">
+                                  Rp {Number(item.nominal).toLocaleString("id-ID")}
+                                </div>
+                                <div className="text-[10px] text-slate-400">
+                                  Porsi dari Omzet: <strong className="text-slate-200">{sharePercent}%</strong>
+                                </div>
+                                <div className="text-[10px] text-slate-500 italic">{item.deskripsi}</div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="nominal" name="Nominal (IDR)" radius={[0, 6, 6, 0]}>
+                        {costBreakdownData.map((entry, index) => (
+                          <Cell key={`cost-item-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Economic Sustainability Metrics Indicator Bar */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Benefit-Cost Ratio (BCR)
+                </span>
+                <div className="text-base font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  {benefitCostRatio.toFixed(2)}x
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[9px] text-slate-500 block leading-tight">
+                  Tiap Rp1 beban menghasilkan Rp{benefitCostRatio.toFixed(2)} omzet
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Kekayaan Bersih Th-1
+                </span>
+                <div className="text-base font-black text-blue-600 dark:text-blue-400">
+                  Rp {formatShortRupiah(year1NetWealth)}
+                </div>
+                <span className="text-[9px] text-slate-500 block leading-tight">
+                  Laba bersih 12 bln setelah potong 100% modal awal
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Batas Keamanan (MoS)
+                </span>
+                <div className="text-base font-black text-amber-600 dark:text-amber-400">
+                  +{marginOfSafetyPercent.toFixed(1)}%
+                </div>
+                <span className="text-[9px] text-slate-500 block leading-tight">
+                  Ketahanan terhadap fluktuasi produksi
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  BEP Harian (Fresh)
+                </span>
+                <div className="text-base font-black text-purple-600 dark:text-purple-400">
+                  {(bepFreshMaggotKg / 30).toFixed(1)} kg / hari
+                </div>
+                <span className="text-[9px] text-slate-500 block leading-tight">
+                  Target penjualan harian tutup operasional
+                </span>
+              </div>
             </div>
           </div>
 

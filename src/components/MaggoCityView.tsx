@@ -36,7 +36,19 @@ import {
   Minus,
   Box,
   Calculator,
+  BarChart3,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell,
+  ReferenceLine,
+} from "recharts";
 import {
   JAKARTA_MAGGO_HUBS,
   ACTIVE_BSF_BATCHES,
@@ -929,6 +941,117 @@ export const MaggoCityView: React.FC<MaggoCityViewProps> = ({ isDarkMode }) => {
                   <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
                     {calculatedOutputs.monthlyCo2eAvertedKg.toLocaleString("id-ID")} kg CO₂e / bulan
                   </span>
+                </div>
+              </div>
+
+              {/* Recharts Mini Sustainability Bar: Revenue Streams vs Est. OpEx */}
+              <div
+                className={`p-5 rounded-2xl border space-y-3 ${
+                  isDarkMode ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800 shadow-sm"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-emerald-500" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Visualisasi Pendapatan vs Beban Operasional (Recharts)
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => setActiveSubTab("bep_calculator")}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                  >
+                    Buka Kalkulator BEP Lengkap &amp; Kurva 12 Bulan <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="w-full h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        {
+                          name: "Maggot Segar",
+                          nominal: calculatedOutputs.monthlyFreshRevenue,
+                          fill: "#10b981",
+                          tipe: "Omzet",
+                        },
+                        {
+                          name: "Pupuk Kasgot",
+                          nominal: calculatedOutputs.monthlyKasgotRevenue,
+                          fill: "#f59e0b",
+                          tipe: "Omzet",
+                        },
+                        {
+                          name: "OpEx (Est 25%)",
+                          nominal: Math.round(calculatedOutputs.totalMonthlyRevenue * 0.25),
+                          fill: "#f43f5e",
+                          tipe: "Biaya Operasional",
+                        },
+                        {
+                          name: "Laba Bersih (Est)",
+                          nominal: Math.round(calculatedOutputs.totalMonthlyRevenue * 0.75),
+                          fill: "#059669",
+                          tipe: "Laba Bersih",
+                        },
+                      ]}
+                      margin={{ top: 15, right: 15, left: 5, bottom: 20 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDarkMode ? "#334155" : "#e2e8f0"}
+                        opacity={0.6}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 11 }}
+                      />
+                      <YAxis
+                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fill: isDarkMode ? "#94a3b8" : "#64748b", fontSize: 10 }}
+                        tickFormatter={(v) => `Rp ${v >= 1000000 ? (v / 1000000).toFixed(1) + "Jt" : v >= 1000 ? (v / 1000).toFixed(0) + "rb" : v}`}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const d = payload[0].payload as any;
+                            return (
+                              <div
+                                className={`p-2.5 rounded-xl shadow-lg border text-xs space-y-1 ${
+                                  isDarkMode ? "bg-slate-900 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-800"
+                                }`}
+                              >
+                                <div className="font-bold flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.fill }} />
+                                  <span>{d.name}</span>
+                                </div>
+                                <div className="text-sm font-black font-mono">
+                                  Rp {Number(d.nominal).toLocaleString("id-ID")}
+                                </div>
+                                <div className="text-[10px] text-slate-400">{d.tipe}</div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <ReferenceLine
+                        y={Math.round(calculatedOutputs.totalMonthlyRevenue * 0.25)}
+                        stroke="#f43f5e"
+                        strokeDasharray="3 3"
+                      />
+                      <Bar dataKey="nominal" name="Nominal (IDR)" radius={[6, 6, 0, 0]}>
+                        {[
+                          "#10b981",
+                          "#f59e0b",
+                          "#f43f5e",
+                          "#059669",
+                        ].map((fill, idx) => (
+                          <Cell key={`calc-cell-${idx}`} fill={fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>

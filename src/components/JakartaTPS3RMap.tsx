@@ -701,7 +701,7 @@ export const JakartaTPS3RMap: React.FC<JakartaTPS3RMapProps> = ({
               {/* Transformable Canvas Container for Pan & Zoom */}
               <g
                 transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoomLevel})`}
-                transform-origin="450 320"
+                style={{ transformOrigin: "450px 320px" }}
               >
                 {/* 1. Sea Water Basin at the top (Teluk Jakarta) */}
                 <path

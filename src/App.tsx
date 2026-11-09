@@ -17,6 +17,7 @@ import { IntegrationsView } from "./components/IntegrationsView";
 import { AwardingView } from "./components/AwardingView";
 import { LearningByDoingView } from "./components/LearningByDoingView";
 import { MaggoCityView } from "./components/MaggoCityView";
+import { BsuKrisisPlanetView } from "./components/BsuKrisisPlanetView";
 
 import {
   NavTab,
@@ -209,6 +210,14 @@ export default function App() {
             onAddWasteLog={handleAddWasteLog}
             userPoints={userPoints}
             userStreak={userStreak}
+          />
+        )}
+
+        {activeTab === "bsu_krisis_planet" && (
+          <BsuKrisisPlanetView
+            isDarkMode={isDarkMode}
+            onAddWasteLog={handleAddWasteLog}
+            onNavigateToTab={(tab) => setActiveTab(tab as NavTab)}
           />
         )}
 

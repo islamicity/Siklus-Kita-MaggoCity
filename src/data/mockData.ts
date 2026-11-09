@@ -437,6 +437,30 @@ export const SAMPLE_SCANNER_PRESETS = [
     sampleImage: "https://images.unsplash.com/photo-1619725002198-6a689b72f41d?auto=format&fit=crop&w=400&q=80",
     textQuery: "Baterai silinder alkaline bekas dan limbah baterai elektronik rumah tangga",
   },
+  {
+    id: "sample-bsu-board",
+    label: "Papan Edukasi BSU Pencegah Krisis Planet",
+    category: "Plastik (PET/HDPE)",
+    hint: "Papan edukasi pemilahan anorganik terpilah Malaka Jaya DKI Jakarta",
+    sampleImage: "/assets/aistudio/image_ee7640ec.png",
+    textQuery: "Papan edukasi BSU Pencegah Krisis Planet jenis sampah anorganik terpilah logam plastik kertas dan minyak jelantah",
+  },
+  {
+    id: "sample-bsu-jelantah",
+    label: "Minyak Jelantah Sisa Penggorengan",
+    category: "Logam & Kaca",
+    hint: "Saring endapan, kumpulkan dalam jerigen untuk disetor ke BSU",
+    sampleImage: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=400&q=80",
+    textQuery: "Minyak goreng jelantah bekas sisa masak dalam botol untuk biodiesel",
+  },
+  {
+    id: "sample-bsu-mlp",
+    label: "Bungkus Plastik Sachet MLP / Kopi",
+    category: "Plastik (PET/HDPE)",
+    hint: "Plastik multilayer untuk ecobrick atau bahan bakar RDF kiln",
+    sampleImage: "https://images.unsplash.com/photo-1528323273322-d81458248d40?auto=format&fit=crop&w=400&q=80",
+    textQuery: "Bungkus sachet kopi multilayer plastik aluminium foil MLP",
+  },
 ];
 
 export const SAMPLE_DEVICES: ConnectedDevice[] = [
